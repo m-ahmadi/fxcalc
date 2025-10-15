@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>FxCalc</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, maximum-scale=1.0" />
+<style>
+html {font-family: monospace;}
+.g {display:grid; grid-template-columns:auto auto; grid-row-gap: 5px;}
+.larger {font-size: larger;}
+.large {font-size: large;}
+.bold {font-weight: bold;}
+.btn {font-size: small; padding: 0 1px; margin: 0;}
+.btn2 {font-size: small; padding: 1px 9px; margin: 0;}
+input {width: 100px;}
+.inp {font-size:larger;}
+.cptn {margin: 0; margin-bottom: 10px; border-bottom: 1px solid grey; text-align: center;}
+.board {display:grid; grid-template-columns:auto auto; grid-row-gap: 5px;
+	border: 1px solid grey; padding: 2px 5px;}
+.board>div {border-bottom: 1px solid grey; padding-bottom: 3px;}
+.board>div:last-child,.board>div:nth-last-child(2) {border-bottom: none}
+</style>
+</head>
+<body style="width: 310px;">
+
+<div style="border: 1px solid grey; padding: 0 5px 5px 5px;">
+	<h2 class="cptn">Account</h2>
+	<div class="g">
+		<label for="_bln">Balance: </label>
+		<input id="_bln" type="number" oninput="f()" />
+		
+		<label for="_lvg">Leverage: </label>
+		<input id="_lvg" type="number" oninput="f()" />
+		
+		<label for="_mcl">Margin Call Level:</label>
+		<div><input id="_mcl" style="width:50px;" type="number" max="100" min="0" oninput="f()" /> %</div>
+		
+		<label for="_sol">Stop Out Level:</label>
+		<div><input id="_sol" style="width:50px;" type="number" max="100" min="0" oninput="f()" /> %</div>
+	</div>
+</div>
+
+<div style="border: 1px solid grey; border-top:0; padding: 0 5px 5px 5px;">
+	<h2 class="cptn">Trade</h2>
+	<div class="g">
+	
+		<label for="_symtyp">Type:</label>
+		<select id="_symtyp" onchange="f()">
+			<option>Commodity</option>
+			<option>Currency Pair</option>
+			<option>Crypto</option>
+		</select>
+		
+		<label for="_price">Price: </label>
+		<div>
+			<input id="_price" type="number" oninput="f();" />
+			<label>
+				<small>Pip:</small>
+				<select id="_pricePip" style="font-size: xx-small;" onchange="f()">
+					<option>0.01</option>
+					<option>0.001</option>
+					<option>0.0001</option>
+				</select>
+			</label>
+		</div>
+		
+		<label for="_vol">Volume: </label>
+		<div style="display: flex;">
+			<input id="_vol" style="font-size:larger; width:60px; margin-right:7px;" type="number" value="0.01" step="0.01" min="0.01" oninput="f()" onchange="minchk(this)" />
+			<button class="btn" onclick="v(this,_vol,2)">➕</button>
+			<button class="btn" onclick="v(this,_vol,2)">➖</button>
+		</div>
+		
+		<label for="_pipd">Pip Delta: </label>
+		<div style="display: flex; flex-direction: column;">
+			
+			<div style="display:flex;">
+				<input style="width:13px; margin:0; vertical-align: middle; accent-color: red;" type="checkbox" oninput="_pipd.value=opposite(_pipd.value);f();" />
+				<input id="_pipd" style="width:70px;" type="number" value="0" step="1" oninput="f()" />
+				<button class="btn" style="padding: 0 10px; font-family: monospace; font-weight: bolder;" onclick="_pipd.value=0;f();">0</button>
+			</div>
+			<div style="margin-top: 3px;">
+				<div style="display: flex;">
+					<button class="btn2" onclick="v(this,_pipd,0,1000)">➕</button>
+					<button class="btn2" onclick="v(this,_pipd,0,500)">➕</button>
+					<button class="btn2" onclick="v(this,_pipd,0,100)">➕</button>
+				</div>
+				<div style="display: flex;">
+					<button class="btn2" onclick="v(this,_pipd,0,1000)">➖</button>
+					<button class="btn2" onclick="v(this,_pipd,0,500)">➖</button>
+					<button class="btn2" onclick="v(this,_pipd,0,100)">➖</button>
+				</div>
+			</div>
+		</div>
+		
+	</div>
+</div>
+
+<br>
+
+<div class="board" style="width: 298px;">
+
+	<div class="bold">Profit/Loss:</div>
+	<div id="_profitLoss" class="bold"></div>
+	
+	<div class="bold">Margin Level:</div>
+	<div id="_marginLevel" class="bold"></div>
+	
+	<div class="bold">Loss Tolerance Pips:</div>
+	<div id="_lossTolerancePips" style="color:red;"></div>
+	
+	<div class="bold">Loss Tolerance Price:</div>
+	<div id="_lossTolerancePrice"></div>
+
+	<div>Equity:</div>
+	<div id="_equity"></div>
+
+	<div>Used Margin:</div>
+	<div id="_usedMargin"></div>
+
+	<div>Free Margin:</div>
+	<div id="_freeMargin"></div>
+	
+</div>
+
+<script>
+var coefBySymtyp = {'Currency Pair': 1000, 'Commodity': 1, 'Crypto': 0.1};
+var nfmt = Intl.NumberFormat('en',{style:'decimal',minimumFractionDigits:2, maximumFractionDigits:2}).format;
+var getcolr = n => n < 0 ? 'red' : n === 0 ? '' : 'green';
+var opposite = n => n < 0 ? Math.abs(n) : -n;
+
+var conf = localStorage.config;
+if (conf) {
+	conf = JSON.parse(conf);
+	var els = [_bln,_lvg,_mcl,_sol,_vol,_price,_pricePip,_pipd];
+	els.forEach((v,i) => v.value = conf[i]);
+	f();
+}
+
+function f() {
+	var vs = [_bln,_lvg,_mcl,_sol,_vol,_price,_pricePip,_pipd].map(i=>+i.value);
+	var [balance, leverage, marginCallLevel, stopOutLevel, volume, price, pip, pipDelta] = vs;
+	
+	var coef = coefBySymtyp[_symtyp.value];
+	var volumeInMicroLot = volume * 100;
+	
+	var usedMargin = price * coef / leverage * volumeInMicroLot;
+	var pipValue = volumeInMicroLot * 0.01;
+	var profitLoss = pipDelta * pipValue;
+	var equity = balance + profitLoss;
+	var freeMargin = equity - usedMargin;
+	var marginLevel = equity / usedMargin * 100;
+	
+	_profitLoss.innerText = nfmt(profitLoss) + '$';
+	_profitLoss.style.color = getcolr(profitLoss);
+	
+	_marginLevel.innerText = nfmt(marginLevel) + '%';
+	var mlvlcolr = getcolr(marginLevel);
+	if (marginLevel <= marginCallLevel && marginLevel > stopOutLevel) mlvlcolr = 'orange';
+	if (marginLevel <= stopOutLevel) mlvlcolr = 'red';
+	_marginLevel.style.color = mlvlcolr;
+	
+	_equity.innerText = nfmt(equity);
+	_usedMargin.innerText = nfmt(usedMargin);
+	_freeMargin.innerText = nfmt(freeMargin);
+	
+	conf = [balance, leverage, marginCallLevel, stopOutLevel, volume, price, pip, pipDelta, _symtyp.value];
+	localStorage.config = JSON.stringify(conf);
+	
+	if (usedMargin > 0) {
+		var lossTolerance = calcLossTolerance(balance, usedMargin, pipValue, marginCallLevel);
+		_lossTolerancePips.innerText = (lossTolerance===0?'':'-') + lossTolerance.toLocaleString();
+		var pipN = [...(''+pip).split('.')[1]].filter(i=>+i===0).length + 1;
+		_lossTolerancePrice.innerText = (price - (lossTolerance*pip)).toFixed(pipN);
+	} else {
+		_lossTolerancePips.innerText = '';
+	}
+	
+}
+
+function v(el, trgt, dp, step) {
+	var {value, min} = trgt;
+	var hasMin = min !== '';
+	[value, min] = [value,min].map(parseFloat);
+	if (step === undefined) step = +trgt.step;
+	if (el.innerText === '➕') {
+		var newVal = value + step;
+		if (dp > 0) newVal = newVal.toFixed(dp);
+		trgt.value = newVal;
+	} else if (el.innerText === '➖') {
+		var newVal = value - step;
+		if (hasMin && newVal < min) newVal = min;
+		if (dp > 0) newVal = newVal.toFixed(dp);
+		trgt.value = newVal;
+	}
+	f();
+}
+
+function minchk(el) {
+	var {value, min} = el;
+	if (value < min) el.value = min;
+}
+
+function calcLossTolerance(balance, usedMargin, pipValue, trgt) {
+	var pipDelta = 1;
+	var marginLevel = Infinity;
+	while (marginLevel > trgt) {
+		var loss = pipDelta * pipValue;
+		var equity = balance - loss;
+		var freeMargin = equity - usedMargin;
+		marginLevel = equity / usedMargin * 100;
+		pipDelta += 1;
+	}
+	return pipDelta - 2;
+}
+</script>
+</body>
+</html>
