@@ -29,9 +29,6 @@ input {width: 100px;}
 		<label for="_bln">Balance: </label>
 		<input id="_bln" type="number" oninput="f()" />
 		
-		<label for="_lvg">Leverage: </label>
-		<input id="_lvg" type="number" oninput="f()" />
-		
 		<label for="_mcl">Margin Call Level:</label>
 		<div><input id="_mcl" style="width:50px;" type="number" max="100" min="0" oninput="f()" /> %</div>
 		
@@ -41,29 +38,46 @@ input {width: 100px;}
 </div>
 
 <div style="border: 1px solid grey; border-top:0; padding: 0 5px 5px 5px;">
+	<h2 class="cptn">Symbol</h2>
+	<div class="g">
+		<label for="_lvg">Leverage: </label>
+		<select id="_lvg" onchange="f()">
+			<option>1000</option>
+			<option>500</option>
+			<option>400</option>
+			<option>200</option>
+			<option>100</option>
+			<option>50</option>
+			<option>20</option>
+			<option>10</option>
+			<option>5</option>
+			<option>4</option>
+			<option>1</option>
+		</select>
+		
+		<label for="_lotsize" >Lot Size:</label>
+		<select id="_lotsize" onchange="f()">
+			<option value="100000">100,000</option>
+			<option value="5000">5,000</option>
+			<option value="1000">1,000</option>
+			<option value="100">100</option>
+			<option value="50">50</option>
+			<option value="10">10</option>
+			<option value="4">4</option>
+			<option value="1">1</option>
+		</select>
+	</div>
+</div>
+
+<div style="border: 1px solid grey; border-top:0; padding: 0 5px 5px 5px;">
 	<h2 class="cptn">Trade</h2>
 	<div class="g">
 		
-		<label for="_symlotsize" >Lot Size:</label>
-		<div>
-			<select id="_symlotsize" onchange="f()">
-				<option value="1">1</option>
-				<option value="4">4</option>
-				<option value="10">10</option>
-				<option value="50">50</option>
-				<option value="100">100</option>
-				<option value="1000">1,000</option>
-				<option value="5000">5,000</option>
-				<option value="100000">100,000</option>
-			</select>
-			<label>
-				<small>Side:</small>
-				<select id="_side" style="font-size: xx-small;" onchange="f()">
-					<option>Buy</option>
-					<option>Sell</option>
-				</select>
-			</label>
-		</div>
+		<label for="_side">Side:</label>
+		<select id="_side" style="width: 109px;" onchange="f()">
+			<option>Buy</option>
+			<option>Sell</option>
+		</select>
 		
 		<label for="_price">Price: </label>
 		<div>
@@ -154,18 +168,18 @@ var opposite = n => n < 0 ? Math.abs(n) : -n;
 var conf = localStorage.config;
 if (conf) {
 	conf = JSON.parse(conf);
-	var els = [_bln,_lvg,_mcl,_sol,_vol,_price,_pricePip,_pipd,_symlotsize,_side];
+	var els = [_bln,_mcl,_sol,_lvg,_lotsize,_vol,_price,_pricePip,_pipd,_side];
 	els.forEach((v,i) => v.value = conf[i]);
 	f();
 }
 
 function f() {
-	var vs = [_bln,_lvg,_mcl,_sol,_vol,_price,_pricePip,_pipd].map(i=>+i.value);
-	var [balance, leverage, marginCallLevel, stopOutLevel, volume, price, pip, pipDelta] = vs;
+	var vs = [_bln,_mcl,_sol,_lvg,_lotsize,_vol,_price,_pricePip,_pipd].map(i=>+i.value);
+	var [balance, marginCallLevel, stopOutLevel, leverage, lotSize, volume, price, pip, pipDelta] = vs;
 	
 	if (_side.value === 'Sell') pipDelta = opposite(pipDelta);
 	
-	var coef = +_symlotsize.value / 100;
+	var coef = lotSize / 100;
 	var volumeInMicroLot = volume * 100;
 	
 	var usedMargin = price * coef / leverage * volumeInMicroLot;
@@ -188,7 +202,7 @@ function f() {
 	_usedMargin.innerText = nfmt(usedMargin);
 	_freeMargin.innerText = nfmt(freeMargin);
 	
-	conf = [balance, leverage, marginCallLevel, stopOutLevel, volume, price, pip, pipDelta, _symlotsize.value, _side.value];
+	conf = [balance, marginCallLevel, stopOutLevel, leverage, lotSize, volume, price, pip, pipDelta, _side.value];
 	localStorage.config = JSON.stringify(conf);
 	
 	if (usedMargin > 0) {
