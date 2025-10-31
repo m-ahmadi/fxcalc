@@ -44,12 +44,17 @@ input {width: 100px;}
 	<h2 class="cptn">Trade</h2>
 	<div class="g">
 		
-		<label for="_symtyp" >Type:</label>
+		<label for="_symlotsize" >Lot Size:</label>
 		<div>
-			<select id="_symtyp" onchange="f()">
-				<option>Commodity</option>
-				<option>Currency Pair</option>
-				<option>Crypto</option>
+			<select id="_symlotsize" onchange="f()">
+				<option value="1">1</option>
+				<option value="4">4</option>
+				<option value="10">10</option>
+				<option value="50">50</option>
+				<option value="100">100</option>
+				<option value="1000">1,000</option>
+				<option value="5000">5,000</option>
+				<option value="100000">100,000</option>
 			</select>
 			<label>
 				<small>Side:</small>
@@ -142,7 +147,6 @@ input {width: 100px;}
 </div>
 
 <script>
-var coefBySymtyp = {'Currency Pair': 1000, 'Commodity': 1, 'Crypto': 0.1};
 var nfmt = Intl.NumberFormat('en',{style:'decimal',minimumFractionDigits:2, maximumFractionDigits:2}).format;
 var getcolr = n => n < 0 ? 'red' : n === 0 ? '' : 'green';
 var opposite = n => n < 0 ? Math.abs(n) : -n;
@@ -150,7 +154,7 @@ var opposite = n => n < 0 ? Math.abs(n) : -n;
 var conf = localStorage.config;
 if (conf) {
 	conf = JSON.parse(conf);
-	var els = [_bln,_lvg,_mcl,_sol,_vol,_price,_pricePip,_pipd,_symtyp,_side];
+	var els = [_bln,_lvg,_mcl,_sol,_vol,_price,_pricePip,_pipd,_symlotsize,_side];
 	els.forEach((v,i) => v.value = conf[i]);
 	f();
 }
@@ -161,7 +165,7 @@ function f() {
 	
 	if (_side.value === 'Sell') pipDelta = opposite(pipDelta);
 	
-	var coef = coefBySymtyp[_symtyp.value];
+	var coef = +_symlotsize.value / 100;
 	var volumeInMicroLot = volume * 100;
 	
 	var usedMargin = price * coef / leverage * volumeInMicroLot;
@@ -184,7 +188,7 @@ function f() {
 	_usedMargin.innerText = nfmt(usedMargin);
 	_freeMargin.innerText = nfmt(freeMargin);
 	
-	conf = [balance, leverage, marginCallLevel, stopOutLevel, volume, price, pip, pipDelta, _symtyp.value, _side.value];
+	conf = [balance, leverage, marginCallLevel, stopOutLevel, volume, price, pip, pipDelta, _symlotsize.value, _side.value];
 	localStorage.config = JSON.stringify(conf);
 	
 	if (usedMargin > 0) {
